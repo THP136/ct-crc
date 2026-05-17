@@ -383,6 +383,20 @@ def remove_task_from_queue(task_id: int) -> None:
         logger.warning("db remove_task_from_queue: %s", e)
 
 
+def delete_all_buy_tasks_for_symbol(symbol: str) -> int:
+    """Delete all BUY tasks for a symbol. Returns number of rows deleted."""
+    try:
+        with _cursor() as cur:
+            cur.execute(
+                "DELETE FROM crypto_task_queue WHERE symbol = %s AND action = 'BUY'",
+                (symbol.strip().upper(),),
+            )
+            return cur.rowcount or 0
+    except Exception as e:
+        logger.warning("db delete_all_buy_tasks_for_symbol: %s", e)
+    return 0
+
+
 def clear_task_queue_for_symbol(symbol: str) -> None:
     try:
         init_schema()

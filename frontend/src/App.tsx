@@ -14,6 +14,7 @@ import {
   fetchPriceHistory,
   fetchValidX0,
   deleteTask,
+  deleteAllBuyTasks,
   type TaskQueueItem,
   type PassedTaskItem,
   type ClosedTaskItem,
@@ -1115,7 +1116,27 @@ function App() {
                   </table>
 
                   {/* BUY DOWN */}
-                  <h3 className="summary-section-title">BUY DOWN</h3>
+                  <div className="summary-section-title-row">
+                    <h3 className="summary-section-title">BUY DOWN</h3>
+                    {sym.buy_down.length > 0 && (
+                      <button
+                        type="button"
+                        className="btn-danger btn-sm"
+                        onClick={async () => {
+                          if (!confirm(`Xoá tất cả ${sym.buy_down.length} BUY task của ${sym.symbol}?`)) return;
+                          const result = await deleteAllBuyTasks(sym.symbol);
+                          if (result.error) {
+                            setSummaryMessage(result.error);
+                          } else {
+                            setSummaryMessage(`Đã xoá ${result.deleted_count ?? 0} BUY task của ${sym.symbol}.`);
+                            fetchSummary().then(setSummaryData);
+                          }
+                        }}
+                      >
+                        Delete All BUY
+                      </button>
+                    )}
+                  </div>
                   <table>
                     <thead>
                       <tr>

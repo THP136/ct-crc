@@ -143,6 +143,19 @@ def remove_task_from_queue(task_id: int) -> None:
     _save_json_file(TASK_QUEUE_FILE, data)
 
 
+def delete_all_buy_tasks_for_symbol(symbol: str) -> int:
+    """Remove all pending BUY tasks for a symbol. Returns count deleted."""
+    if _use_db():
+        from .db import delete_all_buy_tasks_for_symbol as _delete
+        return _delete(symbol)
+    data = _load_json_file(TASK_QUEUE_FILE) or []
+    sym = symbol.strip().upper()
+    before = len(data)
+    data = [t for t in data if not ((t.get("symbol") or "").upper() == sym and t.get("action") == "BUY")]
+    _save_json_file(TASK_QUEUE_FILE, data)
+    return before - len(data)
+
+
 def clear_task_queue_for_symbol(symbol: str) -> None:
     if _use_db():
         from .db import clear_task_queue_for_symbol as _clear

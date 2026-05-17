@@ -327,6 +327,16 @@ export async function deleteTask(
   return await res.json();
 }
 
+export async function deleteAllBuyTasks(
+  symbol: string
+): Promise<{ ok?: boolean; error?: string; deleted_count?: number }> {
+  const res = await fetch(
+    `${API}/task-engine/tasks/buy-all?symbol=${encodeURIComponent(symbol.trim().toUpperCase())}`,
+    { method: "DELETE" }
+  );
+  return await res.json();
+}
+
 export async function priceBroadcast(
   symbol: string,
   price: number

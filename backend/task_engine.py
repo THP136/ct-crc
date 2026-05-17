@@ -700,6 +700,16 @@ def delete_task_cmd(task_id: int) -> dict[str, Any]:
     return {"ok": True, "deleted_task_id": task_id}
 
 
+def delete_all_buy_tasks_cmd(symbol: str) -> dict[str, Any]:
+    """Delete all pending BUY tasks for a symbol."""
+    from .store import delete_all_buy_tasks_for_symbol
+    sym = symbol.strip().upper()
+    if not sym:
+        return {"error": "symbol is required"}
+    count = delete_all_buy_tasks_for_symbol(sym)
+    return {"ok": True, "symbol": sym, "deleted_count": count}
+
+
 def delete_engine_cmd(symbol: str) -> dict[str, Any]:
     from .store import delete_engine
     delete_engine(symbol)
