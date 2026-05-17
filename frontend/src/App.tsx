@@ -99,6 +99,7 @@ function App() {
 
   // Summary
   const [summaryData, setSummaryData] = useState<SummarySymbol[]>([]);
+  const [summaryMessage, setSummaryMessage] = useState("");
 
   const loadAllSections = async () => {
     const secs = await fetchSections();
@@ -184,6 +185,7 @@ function App() {
   // Summary
   useEffect(() => {
     if (page !== "summary") return;
+    setSummaryMessage("");
     fetchSummary().then(setSummaryData);
   }, [page]);
 
@@ -1037,11 +1039,17 @@ function App() {
             <div className="summary-actions">
               <button
                 type="button"
-                onClick={() => fetchSummary().then(setSummaryData)}
+                onClick={() => {
+                  setSummaryMessage("");
+                  fetchSummary().then(setSummaryData);
+                }}
               >
                 Refresh
               </button>
             </div>
+            {summaryMessage && (
+              <div className="engine-message">{summaryMessage}</div>
+            )}
             {summaryData.length === 0 ? (
               <section className="card">
                 <p className="sub">Chưa có section nào được tạo.</p>
@@ -1117,12 +1125,13 @@ function App() {
                         <th>Target Price</th>
                         <th>Coins</th>
                         <th>Origin</th>
+                        <th></th>
                       </tr>
                     </thead>
                     <tbody>
                       {sym.buy_down.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="empty">
+                          <td colSpan={7} className="empty">
                             (none)
                           </td>
                         </tr>
@@ -1139,6 +1148,23 @@ function App() {
                               <td>{formatPrice(r.target_price)}</td>
                               <td>{r.coins_to_trade.toFixed(4)}</td>
                               <td>{r.sell_origin || "—"}</td>
+                              <td>
+                                <button
+                                  className="btn-xs btn-danger"
+                                  title="Delete BUY task"
+                                  onClick={async () => {
+                                    const result = await deleteTask(r.id);
+                                    if (result.error) {
+                                      setSummaryMessage(result.error);
+                                    } else {
+                                      setSummaryMessage("");
+                                      fetchSummary().then(setSummaryData);
+                                    }
+                                  }}
+                                >
+                                  ×
+                                </button>
+                              </td>
                             </tr>
                           ))}
                           <tr className="summary-total-row">
@@ -1150,6 +1176,7 @@ function App() {
                                 {sym.total_buy_down_coins.toFixed(4)}
                               </strong>
                             </td>
+                            <td></td>
                             <td></td>
                           </tr>
                         </>
