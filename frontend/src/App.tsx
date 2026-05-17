@@ -13,6 +13,7 @@ import {
   deleteEngine,
   fetchPriceHistory,
   fetchValidX0,
+  deleteTask,
   type TaskQueueItem,
   type PassedTaskItem,
   type ClosedTaskItem,
@@ -275,6 +276,15 @@ function App() {
     if (selectedSymbol === sym) {
       setSelectedSymbol(remainingSyms[0] || "");
       setSelectedSectionId(remaining[0]?.id ?? null);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: number) => {
+    const result = await deleteTask(taskId);
+    if (result.error) {
+      setEngineMessage(result.error);
+    } else {
+      loadSectionInfo(selectedSectionId);
     }
   };
 
@@ -724,12 +734,13 @@ function App() {
                         <th>Sibling</th>
                         <th>Origin</th>
                         <th>Note</th>
+                        <th></th>
                       </tr>
                     </thead>
                     <tbody>
                       {sectionDownTasks.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="empty">
+                          <td colSpan={8} className="empty">
                             No DOWN tasks
                           </td>
                         </tr>
@@ -759,6 +770,17 @@ function App() {
                             </td>
                             <td>{t.sell_origin || "—"}</td>
                             <td>{t.note}</td>
+                            <td>
+                              {t.action === "BUY" && (
+                                <button
+                                  className="btn-xs btn-danger"
+                                  onClick={() => handleDeleteTask(t.id)}
+                                  title="Delete BUY task"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </td>
                           </tr>
                         ))
                       )}

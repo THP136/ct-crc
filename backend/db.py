@@ -347,6 +347,34 @@ def update_task_sibling_id(task_id: int, sibling_id: int) -> None:
         logger.warning("db update_task_sibling_id: %s", e)
 
 
+def load_task_by_id(task_id: int) -> dict[str, Any] | None:
+    try:
+        init_schema()
+        with _cursor() as cur:
+            cur.execute(
+                "SELECT id, symbol, direction, target_pct, action, note, sibling_id, sell_origin, section_id "
+                "FROM crypto_task_queue WHERE id = %s",
+                (task_id,),
+            )
+            row = cur.fetchone()
+            if row is None:
+                return None
+            return {
+                "id": row[0],
+                "symbol": row[1],
+                "direction": row[2],
+                "target_pct": float(row[3]),
+                "action": row[4],
+                "note": row[5] or "",
+                "sibling_id": row[6],
+                "sell_origin": row[7] or "",
+                "section_id": row[8],
+            }
+    except Exception as e:
+        logger.warning("db load_task_by_id: %s", e)
+    return None
+
+
 def remove_task_from_queue(task_id: int) -> None:
     try:
         with _cursor() as cur:

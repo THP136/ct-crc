@@ -67,6 +67,7 @@ def index():
             "/api/task-engine/summary",
             "/api/task-engine/sections",
             "/api/task-engine/sections/valid-x0",
+            "/api/task-engine/tasks/<id>",
             "/api/task-engine/price-broadcast",
             "/api/task-engine/price-history",
         ],
@@ -277,6 +278,15 @@ def api_delete_engine(symbol):
         return jsonify({"error": "symbol is required"}), 400
     from .task_engine import delete_engine_cmd
     return jsonify(delete_engine_cmd(symbol))
+
+
+@app.route("/api/task-engine/tasks/<int:task_id>", methods=["DELETE"])
+def api_delete_task(task_id):
+    from .task_engine import delete_task_cmd
+    result = delete_task_cmd(task_id)
+    if "error" in result:
+        return jsonify(result), 400
+    return jsonify(result)
 
 
 @app.route("/api/task-engine/price-history")

@@ -638,10 +638,11 @@ def _process_section_price(section_id: int, symbol: str, x0: float,
         if not triggered_any:
             break
 
-    # After all hits are processed: reset remaining SELL tasks, then spawn fresh SELL pair
-    # anchored to the current price position.
-    cancel_all_sell_tasks_sec()
-    spawned.extend(spawn_sell_pair_sec())
+    # After all hits are processed: only reset+respawn SELL pair if a trigger occurred.
+    # If nothing triggered, keep existing SELL tasks unchanged (per-section independence).
+    if triggered:
+        cancel_all_sell_tasks_sec()
+        spawned.extend(spawn_sell_pair_sec())
 
     return {
         "section_id": section_id,
@@ -685,6 +686,18 @@ def process_symbol_price(symbol: str, new_x: float) -> dict[str, Any]:
         "total_triggered": total_triggered,
         "results": results,
     }
+
+
+def delete_task_cmd(task_id: int) -> dict[str, Any]:
+    """Delete a single BUY task from the queue by id."""
+    from .store import load_task_by_id, remove_task_from_queue
+    task = load_task_by_id(task_id)
+    if task is None:
+        return {"error": f"Task {task_id} not found"}
+    if task.get("action") != "BUY":
+        return {"error": "Only BUY tasks can be deleted manually"}
+    remove_task_from_queue(task_id)
+    return {"ok": True, "deleted_task_id": task_id}
 
 
 def delete_engine_cmd(symbol: str) -> dict[str, Any]:

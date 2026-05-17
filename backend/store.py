@@ -126,6 +126,14 @@ def update_task_sibling_id(task_id: int, sibling_id: int) -> None:
     _save_json_file(TASK_QUEUE_FILE, data)
 
 
+def load_task_by_id(task_id: int) -> dict[str, Any] | None:
+    if _use_db():
+        from .db import load_task_by_id as _load
+        return _load(task_id)
+    data = _load_json_file(TASK_QUEUE_FILE) or []
+    return next((t for t in data if t.get("id") == task_id), None)
+
+
 def remove_task_from_queue(task_id: int) -> None:
     if _use_db():
         from .db import remove_task_from_queue as _remove

@@ -318,6 +318,15 @@ export async function deleteSection(
   return await res.json();
 }
 
+export async function deleteTask(
+  taskId: number
+): Promise<{ ok?: boolean; error?: string }> {
+  const res = await fetch(`${API}/task-engine/tasks/${taskId}`, {
+    method: "DELETE",
+  });
+  return await res.json();
+}
+
 export async function priceBroadcast(
   symbol: string,
   price: number
