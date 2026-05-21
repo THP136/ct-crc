@@ -163,6 +163,39 @@ def process_new_price(symbol: str, new_x: float) -> dict[str, Any]:
         if not triggered_any:
             break
 
+    # FIX: supplement SELL UP if price crossed x0 but no trigger, and no UP/SELL pending
+    if not triggered and new_x >= x0:
+        current_tasks = load_task_queue(symbol)
+        has_sell_up = any(t["action"] == "SELL" and t["direction"] == "UP" for t in current_tasks)
+        if not has_sell_up:
+            base = current_pct
+            sell_downs = [t for t in current_tasks if t["action"] == "SELL" and t["direction"] == "DOWN"]
+            if sell_downs:
+                sell_down = max(sell_downs, key=lambda t: t["target_pct"])
+                old_sib_id = sell_down.get("sibling_id")
+                if old_sib_id:
+                    update_task_sibling_id(old_sib_id, 0)
+                    update_task_sibling_id(sell_down["id"], 0)
+                t_su = add_task_to_queue(
+                    symbol, "UP", base + 3.0, "SELL",
+                    f"SELL (take-profit) nếu x tăng 3% (tới {base + 3.0:+.4f}%) [bổ sung sau khi vượt x0]",
+                )
+                if t_su:
+                    update_task_sibling_id(sell_down["id"], t_su["id"])
+                    update_task_sibling_id(t_su["id"], sell_down["id"])
+                    spawned.append(t_su)
+            else:
+                t_sd = add_task_to_queue(symbol, "DOWN", base - 2.0, "SELL",
+                                         f"SELL (stop-loss) nếu x giảm 2% (tới {base - 2.0:+.4f}%)")
+                t_su = add_task_to_queue(symbol, "UP", base + 3.0, "SELL",
+                                         f"SELL (take-profit) nếu x tăng 3% (tới {base + 3.0:+.4f}%)")
+                if t_sd and t_su:
+                    update_task_sibling_id(t_sd["id"], t_su["id"])
+                    update_task_sibling_id(t_su["id"], t_sd["id"])
+                    t_sd["sibling_id"] = t_su["id"]
+                    t_su["sibling_id"] = t_sd["id"]
+                spawned.extend([t for t in (t_sd, t_su) if t])
+
     final_state = load_task_engine_state(symbol)
     final_tasks = load_task_queue(symbol)
     passed = load_passed_tasks(symbol)
@@ -584,6 +617,36 @@ def _process_section_price(section_id: int, symbol: str, x0: float,
             return [t for t in (t_sd, t_su) if t]
         return [t for t in (t_sd,) if t]
 
+    def try_supplement_sell_up_sec() -> None:
+        """
+        FIX: bổ sung SELL UP khi giá vượt x0 nhưng không trigger task nào.
+        Nếu current_x >= x0 và không có UP/SELL nào pending:
+          - Tìm DOWN/SELL gần nhất → ghép sibling với UP/SELL mới
+          - Không có DOWN/SELL → spawn cặp SELL hoàn toàn mới
+        """
+        if new_x < x0:
+            return
+        tasks_now = load_task_queue_by_section(section_id)
+        has_sell_up = any(t["action"] == "SELL" and t["direction"] == "UP" for t in tasks_now)
+        if has_sell_up:
+            return
+        base = current_pct
+        sell_downs = [t for t in tasks_now if t["action"] == "SELL" and t["direction"] == "DOWN"]
+        if sell_downs:
+            sell_down = max(sell_downs, key=lambda t: t["target_pct"])
+            old_sib_id = sell_down.get("sibling_id")
+            if old_sib_id:
+                update_task_sibling_id(old_sib_id, 0)
+                update_task_sibling_id(sell_down["id"], 0)
+            t_su = add_fn(symbol, "UP", base + 3.0, "SELL",
+                          f"SELL (take-profit) nếu x tăng 3% (tới {base + 3.0:+.4f}%) [bổ sung sau khi vượt x0]")
+            if t_su:
+                update_task_sibling_id(sell_down["id"], t_su["id"])
+                update_task_sibling_id(t_su["id"], sell_down["id"])
+                spawned.append(t_su)
+        else:
+            spawned.extend(spawn_sell_pair_sec())
+
     # 1. Process hits FIRST: old SELL tasks get a chance to trigger and spawn BUY tasks.
     # 2. THEN reset all SELL tasks and spawn a fresh SELL pair at the new price.
     # This guarantees: if price crosses SELL threshold → trigger → BUY spawned →
@@ -638,11 +701,14 @@ def _process_section_price(section_id: int, symbol: str, x0: float,
         if not triggered_any:
             break
 
-    # After all hits are processed: only reset+respawn SELL pair if a trigger occurred.
-    # If nothing triggered, keep existing SELL tasks unchanged (per-section independence).
+    # After all hits are processed:
+    # - Trigger occurred: reset all SELL tasks, spawn fresh SELL pair at new price.
+    # - No trigger: check if SELL UP needs to be supplemented (price crossed x0).
     if triggered:
         cancel_all_sell_tasks_sec()
         spawned.extend(spawn_sell_pair_sec())
+    else:
+        try_supplement_sell_up_sec()
 
     return {
         "section_id": section_id,
